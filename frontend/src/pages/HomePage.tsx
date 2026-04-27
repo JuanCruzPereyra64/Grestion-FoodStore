@@ -26,7 +26,7 @@ export function HomePage() {
     { label: 'Ingredientes', value: ingredientes?.length || 0, icon: Package, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
   ]
 
-  const masCaro = productos?.reduce((prev, current) => (prev.precio > current.precio) ? prev : current, productos[0])
+  const masCaro = productos?.reduce((prev, current) => (prev.precio_base > current.precio_base) ? prev : current, productos[0])
 
   return (
     <div className="space-y-10">
@@ -105,10 +105,10 @@ export function HomePage() {
               </div>
               <div>
                 <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{masCaro.nombre}</h3>
-                <p className="text-slate-500 dark:text-slate-400 mt-1">{masCaro.categoria?.nombre || 'General'}</p>
+                <p className="text-slate-500 dark:text-slate-400 mt-1">{masCaro.categorias?.[0]?.nombre || 'General'}</p>
               </div>
               <div className="px-6 py-2 rounded-2xl bg-slate-50 dark:bg-slate-902 text-accent font-display font-bold text-2xl">
-                ${masCaro.precio.toFixed(2)}
+                ${masCaro.precio_base.toFixed(2)}
               </div>
               <p className="text-sm text-slate-400">Es el producto de mayor valor en tu carta actual.</p>
               <Link to={`/productos/${masCaro.id}`} className="pt-4">

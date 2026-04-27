@@ -71,13 +71,13 @@ export function ProductoDetallePage() {
                   <div className="flex items-center gap-2 mt-2">
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
                       <Tag size={12} />
-                      {producto.categoria?.nombre || 'General'}
+                      {producto.categorias?.[0]?.nombre || 'General'}
                     </span>
                   </div>
                 </div>
                 <div className="text-right">
                   <p className="text-3xl font-display font-bold text-accent dark:text-accent">
-                    ${producto.precio.toFixed(2)}
+                    ${producto.precio_base.toFixed(2)}
                   </p>
                   <p className="text-xs text-slate-400 font-medium uppercase tracking-widest mt-1">Precio Sugerido</p>
                 </div>

@@ -34,8 +34,8 @@ docker compose up -d
 ### Correr el backend
 
 ```bash
-cd backend
-uvicorn main:app --reload
+# Desde la raíz del proyecto
+PYTHONPATH=. uvicorn backend.main:app --reload
 ```
 
 Swagger disponible en: http://localhost:8000/docs

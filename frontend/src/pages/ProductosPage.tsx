@@ -21,9 +21,9 @@ export function ProductosPage() {
   const [editing, setEditing] = useState<Producto | null>(null)
   const [filtroCategoria, setFiltroCategoria] = useState<number | undefined>()
   const [searchTerm, setSearchTerm] = useState('')
-  const [form, setForm] = useState<ProductoCreate>({ 
+  const [form, setForm] = useState<any>({ 
     nombre: '', 
-    precio: 0, 
+    precio_base: 0, 
     descripcion: '', 
     categoria_id: 0, 
     ingrediente_ids: [] 
@@ -41,7 +41,7 @@ export function ProductosPage() {
     setEditing(null)
     setForm({ 
       nombre: '', 
-      precio: 0, 
+      precio_base: 0, 
       descripcion: '', 
       categoria_id: categorias?.[0]?.id ?? 0,
       ingrediente_ids: [] 
@@ -53,9 +53,9 @@ export function ProductosPage() {
     setEditing(p)
     setForm({ 
       nombre: p.nombre, 
-      precio: p.precio, 
+      precio_base: p.precio_base, 
       descripcion: p.descripcion ?? '', 
-      categoria_id: p.categoria_id,
+      categoria_id: p.categorias?.[0]?.id ?? 0,
       ingrediente_ids: p.ingredientes?.map(i => i.id) ?? []
     })
     setModalOpen(true)
@@ -79,10 +79,18 @@ export function ProductosPage() {
       return
     }
 
+    const payload: ProductoCreate = {
+      nombre: form.nombre,
+      precio_base: form.precio_base,
+      descripcion: form.descripcion,
+      categoria_ids: [form.categoria_id],
+      ingrediente_ids: form.ingrediente_ids
+    }
+
     if (editing) {
-      updateMutation.mutate({ id: editing.id, data: form }, { onSuccess: () => setModalOpen(false) })
+      updateMutation.mutate({ id: editing.id, data: payload }, { onSuccess: () => setModalOpen(false) })
     } else {
-      createMutation.mutate(form, { onSuccess: () => setModalOpen(false) })
+      createMutation.mutate(payload, { onSuccess: () => setModalOpen(false) })
     }
   }
 
@@ -168,11 +176,11 @@ export function ProductosPage() {
                     </Link>
                   </td>
                   <td className="px-6 py-4">
-                    <span className="font-display font-medium text-slate-900 dark:text-slate-200">${p.precio.toFixed(2)}</span>
+                    <span className="font-display font-medium text-slate-900 dark:text-slate-200">${p.precio_base.toFixed(2)}</span>
                   </td>
                   <td className="px-6 py-4">
                     <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
-                      {p.categoria?.nombre || 'General'}
+                      {p.categorias?.[0]?.nombre || 'General'}
                     </span>
                   </td>
                   <td className="px-6 py-4">
@@ -233,8 +241,8 @@ export function ProductosPage() {
           
           <div className="space-y-2">
             <label className="text-sm font-semibold text-slate-700 dark:text-slate-300 ml-1">Precio ($)</label>
-            <input required type="number" min="0.01" step="0.01" value={form.precio}
-              onChange={(e) => setForm({ ...form, precio: Number(e.target.value) })}
+            <input required type="number" min="0.01" step="0.01" value={form.precio_base}
+              onChange={(e) => setForm({ ...form, precio_base: Number(e.target.value) })}
               className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
           </div>
 

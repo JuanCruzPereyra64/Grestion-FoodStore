@@ -13,11 +13,13 @@ export interface Ingrediente {
 export interface Producto {
   id: number
   nombre: string
-  precio: number
+  precio_base: number
   descripcion?: string
-  categoria_id: number
-  categoria?: Categoria
-  ingredientes?: Ingrediente[]
+  stock_cantidad: number
+  disponible: boolean
+  imagenes_url: string[]
+  categorias: Categoria[]
+  ingredientes: Ingrediente[]
 }
 
 export interface CategoriaCreate {
@@ -32,8 +34,11 @@ export interface IngredienteCreate {
 
 export interface ProductoCreate {
   nombre: string
-  precio: number
+  precio_base: number
   descripcion?: string
-  categoria_id: number
+  categoria_ids: number[]
   ingrediente_ids: number[]
+  stock_cantidad?: number
+  disponible?: boolean
+  imagenes_url?: string[]
 }
