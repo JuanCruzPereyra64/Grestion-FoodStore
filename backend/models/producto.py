@@ -22,6 +22,7 @@ class ProductoIngrediente(SQLModel, table=True):
 
     producto_id: int = Field(default=None, foreign_key="productos.id", primary_key=True)
     ingrediente_id: int = Field(default=None, foreign_key="ingredientes.id", primary_key=True)
+    cantidad_requerida: float = Field(default=1.0)
     es_removible: bool = Field(default=False)
 
 

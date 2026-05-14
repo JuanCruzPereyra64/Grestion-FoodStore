@@ -15,6 +15,8 @@ class Ingrediente(SQLModel, table=True):
     nombre: str = Field(min_length=1, max_length=100, unique=True)
     descripcion: Optional[str] = None
     es_alergeno: bool = Field(default=False)
+    stock: float = Field(default=0.0)
+    unidad_medida: str = Field(default="g")
 
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

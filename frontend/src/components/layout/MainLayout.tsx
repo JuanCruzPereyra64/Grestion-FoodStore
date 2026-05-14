@@ -1,4 +1,4 @@
-import { NavLink, useLocation } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   LayoutDashboard, 
@@ -6,27 +6,35 @@ import {
   UtensilsCrossed, 
   ChefHat,
   Menu,
-  Home
+  Home,
+  ClipboardList,
+  LogOut
 } from 'lucide-react'
 import { useState } from 'react'
+import { useAuth } from '../../stores/authStore'
 
 interface LayoutProps {
   children: React.ReactNode
 }
 
 const navItems = [
-  { to: '/', label: 'Dashboard', icon: Home },
-  { to: '/categorias', label: 'Categorías', icon: LayoutDashboard },
-  { to: '/ingredientes', label: 'Ingredientes', icon: Leaf },
-  { to: '/productos', label: 'Productos', icon: UtensilsCrossed },
+  { to: '/admin', label: 'Dashboard', icon: Home },
+  { to: '/admin/producto/nuevo', label: 'Cargar Producto', icon: LayoutDashboard },
+  { to: '/admin/ingredientes', label: 'Ingredientes', icon: Leaf },
+  { to: '/admin/productos', label: 'Productos', icon: UtensilsCrossed },
+  { to: '/admin/pedidos', label: 'Pedidos', icon: ClipboardList },
 ]
 
 export function MainLayout({ children }: LayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const location = useLocation()
+  const navigate = useNavigate()
+  const { state, logout } = useAuth()
+
+  const visibleNavItems = navItems
 
   return (
-    <div className="min-h-screen flex bg-slate-50 dark:bg-slate-920">
+    <div className="min-h-screen flex bg-transparent">
       {/* Mobile Menu Button */}
       <button 
         onClick={() => setIsSidebarOpen(true)}
@@ -50,7 +58,7 @@ export function MainLayout({ children }: LayoutProps) {
 
       {/* Sidebar */}
       <aside className={`
-        fixed inset-y-0 left-0 z-50 w-72 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 transition-transform duration-300 lg:translate-x-0 lg:static
+        fixed inset-y-0 left-0 z-50 w-72 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 transition-transform duration-300 lg:translate-x-0 lg:fixed lg:inset-y-0 lg:left-0
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
         <div className="flex flex-col h-full">
@@ -60,18 +68,18 @@ export function MainLayout({ children }: LayoutProps) {
               <ChefHat size={24} strokeWidth={2.5} />
             </div>
             <div>
-              <h1 className="text-xl font-display font-bold text-slate-900 dark:text-white leading-tight">
-                UTN Gourmet
+              <h1 className="text-xl font-display font-bold leading-tight neon-title neon-flicker">
+                DISTRITO FOOD
               </h1>
               <p className="text-xs text-slate-500 font-medium tracking-wide uppercase">
-                Admin Panel
+                Panel de Control
               </p>
             </div>
           </div>
 
           {/* Navigation */}
           <nav className="flex-1 px-4 space-y-1.5 overflow-y-auto">
-            {navItems.map((item) => (
+            {visibleNavItems.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
@@ -85,7 +93,7 @@ export function MainLayout({ children }: LayoutProps) {
                 `}
               >
                 <item.icon size={20} className="group-hover:scale-110 transition-transform" />
-                {item.label}
+                <span className="flex-1">{item.label}</span>
               </NavLink>
             ))}
           </nav>
@@ -94,13 +102,24 @@ export function MainLayout({ children }: LayoutProps) {
           <div className="p-6 border-t border-slate-100 dark:border-slate-800">
             <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
-                  <img src="https://ui-avatars.com/api/?name=Admin&background=random" alt="User" />
+                <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden flex items-center justify-center text-slate-500 font-bold text-sm">
+                  {state.user?.nombre?.charAt(0) || 'A'}
                 </div>
-                <div>
-                  <p className="text-sm font-semibold text-slate-900 dark:text-white">Admin User</p>
-                  <p className="text-xs text-slate-500">Super Admin</p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">
+                    {state.user?.nombre || 'Usuario'}
+                  </p>
+                  <p className="text-xs text-slate-500 truncate">
+                    {state.user?.roles?.join(', ') || 'Sin rol'}
+                  </p>
                 </div>
+                <button
+                  onClick={() => { logout(); navigate('/login') }}
+                  className="p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors"
+                  title="Cerrar sesión"
+                >
+                  <LogOut size={16} />
+                </button>
               </div>
             </div>
           </div>
@@ -108,7 +127,7 @@ export function MainLayout({ children }: LayoutProps) {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 min-w-0 flex flex-col">
+      <main className="flex-1 min-w-0 flex flex-col lg:pl-72">
         <div className="flex-1 overflow-x-hidden p-6 lg:p-10">
           <AnimatePresence mode="wait">
             <motion.div

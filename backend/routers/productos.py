@@ -1,11 +1,28 @@
+import uuid
+from pathlib import Path
 from typing import Annotated, Optional
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, UploadFile, File, HTTPException
 from backend.database import get_uow
-from backend.schemas.producto import ProductoCreate, ProductoRead, ProductoUpdate
+from backend.schemas.producto import AsociarIngrediente, ProductoCreate, ProductoIngredienteRead, ProductoRead, ProductoUpdate
 from backend.services import producto_service
 from backend.uow.unit_of_work import UnitOfWork
 
 router = APIRouter(prefix="/productos", tags=["Productos"])
+
+UPLOAD_DIR = Path(__file__).parent.parent.parent / "Imagenes_produtos"
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+
+@router.post("/imagen")
+async def upload_imagen(file: UploadFile = File(...)):
+    if file.content_type not in ("image/jpeg", "image/png", "image/webp", "image/gif"):
+        raise HTTPException(status_code=400, detail="Formato no soportado. Usá JPG, PNG, WebP o GIF.")
+    ext = Path(file.filename).suffix if file.filename else ".jpg"
+    nombre = f"{uuid.uuid4().hex}{ext}"
+    ruta = UPLOAD_DIR / nombre
+    content = await file.read()
+    ruta.write_bytes(content)
+    return {"url": f"/imagenes/{nombre}"}
 
 
 @router.get("/", response_model=list[ProductoRead])
@@ -38,9 +55,14 @@ def delete_producto(producto_id: int, uow: UnitOfWork = Depends(get_uow)):
     producto_service.delete(uow, producto_id)
 
 
-@router.post("/{producto_id}/ingredientes/{ingrediente_id}", response_model=ProductoRead)
-def add_ingrediente(producto_id: int, ingrediente_id: int, uow: UnitOfWork = Depends(get_uow)):
-    return producto_service.add_ingrediente(uow, producto_id, ingrediente_id)
+@router.get("/{producto_id}/ingredientes", response_model=list[ProductoIngredienteRead])
+def get_ingredientes(producto_id: int, uow: UnitOfWork = Depends(get_uow)):
+    return producto_service.get_ingredientes(uow, producto_id)
+
+
+@router.post("/{producto_id}/ingredientes", response_model=ProductoRead, status_code=201)
+def add_ingrediente(producto_id: int, data: AsociarIngrediente, uow: UnitOfWork = Depends(get_uow)):
+    return producto_service.add_ingrediente(uow, producto_id, data.ingrediente_id, data.cantidad_requerida, data.es_removible)
 
 
 @router.delete("/{producto_id}/ingredientes/{ingrediente_id}", response_model=ProductoRead)

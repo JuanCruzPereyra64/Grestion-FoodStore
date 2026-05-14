@@ -4,4 +4,12 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  server: {
+    proxy: {
+      '/imagenes': {
+        target: 'http://backend:8000',
+        changeOrigin: true,
+      },
+    },
+  },
 })

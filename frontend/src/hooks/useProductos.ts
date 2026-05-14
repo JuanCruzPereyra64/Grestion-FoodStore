@@ -41,12 +41,22 @@ export function useDeleteProducto() {
   })
 }
 
+export function useProductoIngredientes(productoId: number) {
+  return useQuery({
+    queryKey: ['productos', productoId, 'ingredientes'],
+    queryFn: () => productosApi.getIngredientes(productoId),
+  })
+}
+
 export function useAddIngrediente() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ productoId, ingredienteId }: { productoId: number; ingredienteId: number }) =>
-      productosApi.addIngrediente(productoId, ingredienteId),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['productos'] }),
+    mutationFn: ({ productoId, ingredienteId, cantidad_requerida, es_removible }: { productoId: number; ingredienteId: number; cantidad_requerida?: number; es_removible?: boolean }) =>
+      productosApi.addIngrediente(productoId, { ingrediente_id: ingredienteId, cantidad_requerida, es_removible }),
+    onSuccess: (_, { productoId }) => {
+      queryClient.invalidateQueries({ queryKey: ['productos', productoId] })
+      queryClient.invalidateQueries({ queryKey: ['productos', productoId, 'ingredientes'] })
+    },
   })
 }
 
@@ -55,6 +65,9 @@ export function useRemoveIngrediente() {
   return useMutation({
     mutationFn: ({ productoId, ingredienteId }: { productoId: number; ingredienteId: number }) =>
       productosApi.removeIngrediente(productoId, ingredienteId),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['productos'] }),
+    onSuccess: (_, { productoId }) => {
+      queryClient.invalidateQueries({ queryKey: ['productos', productoId] })
+      queryClient.invalidateQueries({ queryKey: ['productos', productoId, 'ingredientes'] })
+    },
   })
 }

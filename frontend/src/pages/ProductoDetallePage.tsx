@@ -1,9 +1,8 @@
-import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { ArrowLeft, Plus, Trash2, ChefHat, Tag, Info } from 'lucide-react'
+import { ArrowLeft, ChefHat, Tag, Info, ShoppingCart, AlertTriangle, Check, X, Trash2 } from 'lucide-react'
 import { motion } from 'framer-motion'
-import { useProducto, useAddIngrediente, useRemoveIngrediente } from '../hooks/useProductos'
-import { useIngredientes } from '../hooks/useIngredientes'
+import { useProducto } from '../hooks/useProductos'
+import { useCart } from '../stores/cartStore'
 import { Card, CardHeader } from '../components/common/Card'
 import { Button } from '../components/common/Button'
 
@@ -12,11 +11,7 @@ export function ProductoDetallePage() {
   const productoId = Number(id)
 
   const { data: producto, isLoading, isError } = useProducto(productoId)
-  const { data: todosIngredientes } = useIngredientes()
-  const addMutation = useAddIngrediente()
-  const removeMutation = useRemoveIngrediente()
-
-  const [ingredienteSeleccionado, setIngredienteSeleccionado] = useState<number>(0)
+  const cart = useCart()
 
   if (isLoading) return (
     <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
@@ -36,19 +31,24 @@ export function ProductoDetallePage() {
     </Card>
   )
 
-  const ingredientesActualesIds = new Set(producto.ingredientes?.map((i) => i.id) ?? [])
-  const ingredientesDisponibles = todosIngredientes?.filter((i) => !ingredientesActualesIds.has(i.id)) ?? []
+  const p = producto!
+  const cartItem = cart.itemInCart(p.id)
+  const excludedIds = new Set(cartItem?.excludedIngredienteIds ?? [])
 
-  function handleAgregar() {
-    if (!ingredienteSeleccionado) return
-    addMutation.mutate({ productoId, ingredienteId: ingredienteSeleccionado }, {
-      onSuccess: () => setIngredienteSeleccionado(0),
-    })
+  function handleAddToCart() {
+    cart.addItem(p)
+  }
+
+  function handleToggleExclude(ingredienteId: number) {
+    if (cartItem) {
+      cart.toggleExcludeIngrediente(p.id, ingredienteId)
+    } else {
+      cart.addItem(p, 1, [ingredienteId])
+    }
   }
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
-      {/* Back Button */}
       <Link to="/productos" className="inline-flex items-center text-slate-500 hover:text-primary transition-colors gap-2 group">
         <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
         <span className="text-sm font-medium">Volver a Productos</span>
@@ -61,27 +61,44 @@ export function ProductoDetallePage() {
             <div className="absolute top-0 right-0 p-8 text-primary/10 pointer-events-none">
               <ChefHat size={120} strokeWidth={1} />
             </div>
-            
+
             <div className="relative z-10">
               <div className="flex items-start justify-between mb-4">
                 <div>
                   <h1 className="text-4xl font-display font-bold text-slate-900 dark:text-white leading-tight">
-                    {producto.nombre}
+                    {p.nombre}
                   </h1>
                   <div className="flex items-center gap-2 mt-2">
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
                       <Tag size={12} />
-                      {producto.categorias?.[0]?.nombre || 'General'}
+                      {p.categorias?.[0]?.nombre || 'General'}
                     </span>
+                    {p.puede_prepararse ? (
+                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-800">
+                        <Check size={10} />
+                        En stock
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800">
+                        <X size={10} />
+                        Sin stock
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="text-right">
                   <p className="text-3xl font-display font-bold text-accent dark:text-accent">
-                    ${producto.precio_base.toFixed(2)}
+                    ${(p.precio_base ?? 0).toFixed(2)}
                   </p>
                   <p className="text-xs text-slate-400 font-medium uppercase tracking-widest mt-1">Precio Sugerido</p>
                 </div>
               </div>
+
+              {p.imagenes_url?.[0] && (
+                <div className="-mx-6 mt-4 mb-6">
+                  <img src={p.imagenes_url[0]} alt={p.nombre} className="w-full max-h-[32rem] object-contain bg-slate-900/20" />
+                </div>
+              )}
 
               <div className="mt-8 pt-8 border-t border-slate-100 dark:border-slate-800">
                 <div className="flex items-center gap-2 text-slate-900 dark:text-white font-semibold mb-3">
@@ -89,84 +106,108 @@ export function ProductoDetallePage() {
                   <h3>Descripción del Producto</h3>
                 </div>
                 <p className="text-slate-600 dark:text-slate-400 leading-relaxed">
-                  {producto.descripcion || 'Este producto aún no cuenta con una descripción detallada en nuestra carta.'}
+                  {p.descripcion || 'Este producto aún no cuenta con una descripción detallada en nuestra carta.'}
                 </p>
               </div>
             </div>
           </Card>
+
+          {/* Add to Cart Section — moved to right column */}
         </div>
 
-        {/* Right Column: Ingredients Management */}
+        {/* Right Column: Ingredients */}
         <div className="space-y-6">
           <Card className="h-full flex flex-col">
-            <CardHeader 
-              title="Ingredientes" 
-              subtitle={`${producto.ingredientes?.length || 0} ingredientes asignados`}
+            <CardHeader
+              title="Ingredientes"
+              subtitle={`${p.ingredientes?.length || 0} ingredientes asignados`}
             />
 
             <div className="flex-1 space-y-4">
-              {producto.ingredientes?.length ? (
+              {p.ingredientes?.length ? (
                 <ul className="space-y-3">
-                  {producto.ingredientes.map((ing) => (
-                    <motion.li 
-                      layout
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      key={ing.id} 
-                      className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 group"
-                    >
-                      <div>
-                        <p className="text-sm font-semibold text-slate-900 dark:text-slate-200">{ing.nombre}</p>
-                        <p className="text-[10px] text-slate-400 uppercase font-bold tracking-tighter">{ing.unidad_medida}</p>
-                      </div>
-                      <button
-                        onClick={() => removeMutation.mutate({ productoId, ingredienteId: ing.id })}
-                        className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all opacity-0 group-hover:opacity-100"
-                        title="Quitar ingrediente"
+                  {p.ingredientes.map((ing) => {
+                    const isExcluded = excludedIds.has(ing.ingrediente_id)
+                    return (
+                      <motion.li
+                        layout
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        key={ing.ingrediente_id}
+                        className={`p-3 rounded-2xl border transition-all duration-200 ${
+                          isExcluded
+                            ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800'
+                            : 'bg-slate-50 dark:bg-slate-900/50 border-slate-100 dark:border-slate-800'
+                        }`}
                       >
-                        <Trash2 size={16} />
-                      </button>
-                    </motion.li>
-                  ))}
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-sm font-semibold text-slate-900 dark:text-white truncate">
+                              {ing.nombre}
+                            </span>
+                            {ing.es_alergeno && (
+                              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-700 shrink-0">
+                                <AlertTriangle size={8} />
+                                Alérgeno
+                              </span>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => handleToggleExclude(ing.ingrediente_id)}
+                            className={`shrink-0 p-1.5 rounded-lg transition-all ${
+                              isExcluded
+                                ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+                                : 'text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20'
+                            }`}
+                            title={isExcluded ? 'Incluir ingrediente' : 'Excluir ingrediente'}
+                          >
+                            {isExcluded ? <Check size={14} /> : <Trash2 size={14} />}
+                          </button>
+                        </div>
+                      </motion.li>
+                    )
+                  })}
                 </ul>
               ) : (
-                <div className="py-10 text-center space-y-3">
-                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400">
-                    <Plus size={24} />
-                  </div>
+                <div className="py-10 text-center">
                   <p className="text-sm text-slate-500 italic">No hay ingredientes asignados aún.</p>
                 </div>
               )}
             </div>
 
-            {/* Add Ingredient Section */}
-            {ingredientesDisponibles.length > 0 && (
-              <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-800 space-y-4">
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest px-1 text-center">Añadir a la receta</p>
-                <div className="space-y-3">
-                  <select
-                    value={ingredienteSeleccionado}
-                    onChange={(e) => setIngredienteSeleccionado(Number(e.target.value))}
-                    className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all appearance-none"
-                  >
-                    <option value={0} disabled>Seleccionar...</option>
-                    {ingredientesDisponibles.map((i) => (
-                      <option key={i.id} value={i.id}>{i.nombre} ({i.unidad_medida})</option>
-                    ))}
-                  </select>
-                  <Button
-                    onClick={handleAgregar}
-                    disabled={!ingredienteSeleccionado || addMutation.isPending}
-                    className="w-full"
-                    variant="primary"
-                    isLoading={addMutation.isPending}
-                    icon={Plus}
-                  >
-                    Agregar Ingrediente
-                  </Button>
-                </div>
+            {/* CTA — moved from left column */}
+            <div className="mt-6 pt-6 border-t border-slate-100 dark:border-slate-800 space-y-4">
+              <p className="text-xs text-slate-500 dark:text-slate-400 text-center">
+                {cartItem
+                  ? `${cartItem.cantidad} en tu carrito — ${cartItem.excludedIngredienteIds.length} ingrediente(s) excluido(s)`
+                  : p.puede_prepararse ? 'Personalizá tu pedido y agregalo al carrito' : 'Este producto no está disponible'}
+              </p>
+              <div className="flex items-center justify-center gap-3">
+                {cartItem && (
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="secondary" size="sm"
+                      onClick={() => cart.updateCantidad(p.id, cartItem.cantidad - 1)}
+                    >−</Button>
+                    <span className="font-bold text-lg min-w-[2ch] text-center text-slate-900 dark:text-white">{cartItem.cantidad}</span>
+                    <Button
+                      variant="secondary" size="sm"
+                      onClick={() => cart.updateCantidad(p.id, cartItem.cantidad + 1)}
+                    >+</Button>
+                  </div>
+                )}
+                <Button
+                  onClick={handleAddToCart}
+                  variant="primary"
+                  icon={cartItem ? undefined : ShoppingCart}
+                  size="lg"
+                  className="flex-1"
+                  disabled={!p.puede_prepararse}
+                >
+                  {!p.puede_prepararse ? 'Sin stock' : cartItem ? 'Agregar otro' : 'Agregar al carrito'}
+                </Button>
               </div>
-            )}
+            </div>
           </Card>
         </div>
       </div>
