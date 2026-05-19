@@ -88,7 +88,7 @@
   }
 
   .premium-card {
-    @apply bg-white dark:bg-[#1a1a1a] rounded-2xl border border-slate-200 dark:border-[#252525] shadow-premium transition-all duration-300;
+    @apply bg-white dark:bg-[#1a1a1a] rounded-2xl border border-slate-200 dark:border-[#252525] shadow-premium backdrop-blur-lg transition-all duration-300;
   }
 
   .premium-table-header {

@@ -1,5 +1,6 @@
 import { createContext, useContext, useReducer, useEffect, useCallback, type ReactNode } from 'react'
 import type { CartItem, Producto } from '../types'
+import { useAuth } from './authStore'
 
 interface CartState {
   items: CartItem[]
@@ -25,6 +26,12 @@ function loadCart(): CartItem[] {
 function saveCart(items: CartItem[]) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(items))
+  } catch { /* ignore */ }
+}
+
+function clearAuthCart() {
+  try {
+    localStorage.removeItem(STORAGE_KEY)
   } catch { /* ignore */ }
 }
 
@@ -95,13 +102,27 @@ interface CartContextValue {
 const CartContext = createContext<CartContextValue | null>(null)
 
 export function CartProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(cartReducer, { items: loadCart() })
+  const { state: authState } = useAuth()
+  const [localState, dispatch] = useReducer(cartReducer, { items: loadCart() })
 
-  useEffect(() => { saveCart(state.items) }, [state.items])
+  useEffect(() => {
+    if (authState.isAuthenticated) {
+      saveCart(localState.items)
+    } else {
+      clearAuthCart()
+    }
+  }, [localState.items, authState.isAuthenticated])
+
+  const isActive = authState.isAuthenticated
+
+  const items = isActive ? localState.items : []
+  const totalItems = isActive ? localState.items.reduce((sum, i) => sum + i.cantidad, 0) : 0
+  const totalPrice = isActive ? localState.items.reduce((sum, i) => sum + i.producto.precio_base * i.cantidad, 0) : 0
 
   const addItem = useCallback((producto: Producto, cantidad?: number, excludedIngredienteIds?: number[]) => {
+    if (!authState.isAuthenticated) return
     dispatch({ type: 'ADD_ITEM', producto, cantidad, excludedIngredienteIds })
-  }, [])
+  }, [authState.isAuthenticated])
 
   const removeItem = useCallback((productoId: number) => {
     dispatch({ type: 'REMOVE_ITEM', productoId })
@@ -120,15 +141,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const itemInCart = useCallback((productoId: number) => {
-    return state.items.find(i => i.producto.id === productoId)
-  }, [state.items])
-
-  const totalItems = state.items.reduce((sum, i) => sum + i.cantidad, 0)
-  const totalPrice = state.items.reduce((sum, i) => sum + i.producto.precio_base * i.cantidad, 0)
+    if (!authState.isAuthenticated) return undefined
+    return localState.items.find(i => i.producto.id === productoId)
+  }, [localState.items, authState.isAuthenticated])
 
   return (
     <CartContext.Provider value={{
-      items: state.items,
+      items,
       totalItems,
       totalPrice,
       addItem,

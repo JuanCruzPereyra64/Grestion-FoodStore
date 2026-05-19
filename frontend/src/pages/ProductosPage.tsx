@@ -1,13 +1,16 @@
 import { motion } from 'framer-motion'
 import { ShoppingCart, Search, UtensilsCrossed, Star } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import { useProductos } from '../hooks/useProductos'
 import { useCategorias } from '../hooks/useCategorias'
+import { useAuth } from '../stores/authStore'
 import { useCart } from '../stores/cartStore'
 import { Button } from '../components/common/Button'
 
 export function ProductosPage() {
+  const { state: authState } = useAuth()
+  const navigate = useNavigate()
   const { data: productos, isLoading, isError } = useProductos()
   const { data: categorias } = useCategorias()
   const { addItem } = useCart()
@@ -112,7 +115,7 @@ export function ProductosPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: i * 0.05 }}
               >
-                <div className="group relative bg-slate-800/40 border border-slate-700/50 rounded-2xl overflow-hidden hover:border-primary/30 transition-all duration-300">
+                <div className="group relative bg-neutral-950/80 backdrop-blur-lg border border-slate-700/50 rounded-2xl overflow-hidden hover:border-primary/30 transition-all duration-300">
                   {/* Image */}
                   <Link to={`/productos/${p.id}`}>
                     <div className="aspect-[4/3] bg-slate-700/50 overflow-hidden">
@@ -131,7 +134,7 @@ export function ProductosPage() {
                   </Link>
 
                   {/* Content */}
-                  <div className="p-5 space-y-3">
+                  <div className="p-5 space-y-3 bg-black/60 backdrop-blur-md -mt-8 pt-12 rounded-b-2xl relative z-10">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
                         <Link to={`/productos/${p.id}`} className="hover:text-primary transition-colors">
@@ -149,12 +152,12 @@ export function ProductosPage() {
                     </div>
 
                     {p.descripcion && (
-                      <p className="text-sm text-slate-400 line-clamp-2 leading-relaxed">
+                      <p className="text-sm text-gray-300 line-clamp-2 leading-relaxed">
                         {p.descripcion}
                       </p>
                     )}
 
-                    <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                    <div className="flex items-center gap-1.5 text-xs text-slate-400">
                       <Star size={12} className="fill-primary/30 text-primary/30" />
                       <span>{p.ingredientes?.length || 0} ingredientes</span>
                     </div>
@@ -164,7 +167,10 @@ export function ProductosPage() {
                         size="sm"
                         className="w-full"
                         icon={ShoppingCart}
-                        onClick={() => addItem({ ...p, cantidad: 1 })}
+                        onClick={() => {
+                          if (!authState.isAuthenticated) { navigate('/login'); return }
+                          addItem({ ...p, cantidad: 1 })
+                        }}
                       >
                         Agregar al carrito
                       </Button>

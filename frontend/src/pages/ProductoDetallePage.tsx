@@ -1,7 +1,8 @@
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft, ChefHat, Tag, Info, ShoppingCart, AlertTriangle, Check, X, Trash2 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useProducto } from '../hooks/useProductos'
+import { useAuth } from '../stores/authStore'
 import { useCart } from '../stores/cartStore'
 import { Card, CardHeader } from '../components/common/Card'
 import { Button } from '../components/common/Button'
@@ -9,6 +10,8 @@ import { Button } from '../components/common/Button'
 export function ProductoDetallePage() {
   const { id } = useParams<{ id: string }>()
   const productoId = Number(id)
+  const { state: authState } = useAuth()
+  const navigate = useNavigate()
 
   const { data: producto, isLoading, isError } = useProducto(productoId)
   const cart = useCart()
@@ -36,10 +39,12 @@ export function ProductoDetallePage() {
   const excludedIds = new Set(cartItem?.excludedIngredienteIds ?? [])
 
   function handleAddToCart() {
+    if (!authState.isAuthenticated) { navigate('/login'); return }
     cart.addItem(p)
   }
 
   function handleToggleExclude(ingredienteId: number) {
+    if (!authState.isAuthenticated) { navigate('/login'); return }
     if (cartItem) {
       cart.toggleExcludeIngrediente(p.id, ingredienteId)
     } else {

@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { User, LogOut, ShoppingBag, ChevronDown, ShoppingCart } from 'lucide-react'
 import { useAuth } from '../../stores/authStore'
 import { useCart } from '../../stores/cartStore'
+
 import { Footer } from './Footer'
 
 interface LayoutProps {
@@ -34,40 +35,51 @@ export function ClientLayout({ children }: LayoutProps) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 grid grid-cols-3 items-center">
           {/* Col 1: Avatar */}
           <div className="justify-self-start">
-            <div className="relative" ref={dropdownRef}>
-              <button
-                onClick={() => setDropdownOpen(!dropdownOpen)}
+            {state.isAuthenticated ? (
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  onClick={() => setDropdownOpen(!dropdownOpen)}
+                  className="flex items-center gap-1.5 p-1.5 rounded-lg hover:bg-slate-800 transition-colors"
+                >
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                    <User size={16} />
+                  </div>
+                  <ChevronDown size={12} className="text-slate-400" />
+                </button>
+
+                {dropdownOpen && (
+                  <div className="absolute top-full left-0 mt-2 w-52 bg-slate-800 rounded-xl shadow-2xl border border-slate-700 overflow-hidden z-50">
+                    <div className="px-4 py-3 border-b border-slate-700">
+                      <p className="text-sm font-medium text-white truncate">{state.user?.nombre || 'Usuario'}</p>
+                      <p className="text-xs text-slate-400 truncate">{state.user?.email || ''}</p>
+                    </div>
+                    <button
+                      onClick={() => { navigate('/pedidos'); setDropdownOpen(false) }}
+                      className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-slate-200 hover:bg-slate-700 transition-colors"
+                    >
+                      <ShoppingBag size={16} />
+                      Historial de pedidos
+                    </button>
+                    <button
+                      onClick={() => { logout(); cart.clearCart(); navigate('/login'); setDropdownOpen(false) }}
+                      className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-red-400 hover:bg-slate-700 transition-colors"
+                    >
+                      <LogOut size={16} />
+                      Cerrar sesión
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Link
+                to="/login"
                 className="flex items-center gap-1.5 p-1.5 rounded-lg hover:bg-slate-800 transition-colors"
               >
                 <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
                   <User size={16} />
                 </div>
-                <ChevronDown size={12} className="text-slate-400" />
-              </button>
-
-              {dropdownOpen && (
-                <div className="absolute top-full left-0 mt-2 w-52 bg-slate-800 rounded-xl shadow-2xl border border-slate-700 overflow-hidden z-50">
-                  <div className="px-4 py-3 border-b border-slate-700">
-                    <p className="text-sm font-medium text-white truncate">{state.user?.nombre || 'Usuario'}</p>
-                    <p className="text-xs text-slate-400 truncate">{state.user?.email || ''}</p>
-                  </div>
-                  <button
-                    onClick={() => { navigate('/pedidos'); setDropdownOpen(false) }}
-                    className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-slate-200 hover:bg-slate-700 transition-colors"
-                  >
-                    <ShoppingBag size={16} />
-                    Historial de pedidos
-                  </button>
-                  <button
-                    onClick={() => { logout(); navigate('/login'); setDropdownOpen(false) }}
-                    className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-red-400 hover:bg-slate-700 transition-colors"
-                  >
-                    <LogOut size={16} />
-                    Cerrar sesión
-                  </button>
-                </div>
-              )}
-            </div>
+              </Link>
+            )}
           </div>
 
           {/* Col 2: Centro agrupado — enlaces + logo */}
