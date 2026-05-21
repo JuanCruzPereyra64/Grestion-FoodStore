@@ -1,6 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { AuthProvider, useAuth } from './stores/authStore'
-import { CartProvider } from './stores/cartStore'
+import { useAuth } from './stores/authStore'
 import { MainLayout } from './components/layout/MainLayout'
 import { ClientLayout } from './components/layout/ClientLayout'
 import { LoginPage } from './pages/LoginPage'
@@ -78,11 +77,7 @@ function AppRoutes() {
 function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <CartProvider>
-          <AppRoutes />
-        </CartProvider>
-      </AuthProvider>
+      <AppRoutes />
     </BrowserRouter>
   )
 }

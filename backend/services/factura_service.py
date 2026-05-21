@@ -69,8 +69,7 @@ class FacturaService:
         # 5. Transicionar estado a FACTURADO con auditoría
         transicionar_estado(uow, pedido, "FACTURADO")
 
-        # 6. Commit atómico
-        uow.commit()
+        uow.session.flush()
         uow.session.refresh(factura)
 
         return factura

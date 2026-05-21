@@ -12,6 +12,7 @@ from backend.dependencies.auth import (
     decodificar_token,
 )
 from backend.models.refresh_token import RefreshToken
+from backend.models.pedido import EstadoPedido, FormaPago
 from backend.models.usuario import Rol, Usuario, UsuarioRol
 from backend.schemas.auth import (
     LoginRequest,
@@ -25,10 +26,10 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # Roles predefinidos del sistema
 ROLES_FIJOS = [
-    {"nombre": "ADMIN", "descripcion": "Acceso total al sistema"},
-    {"nombre": "STOCK", "descripcion": "Gestión de catálogo e inventario"},
-    {"nombre": "PEDIDOS", "descripcion": "Gestión operativa de pedidos"},
-    {"nombre": "CLIENT", "descripcion": "Cliente de la tienda"},
+    {"codigo": "ADMIN", "descripcion": "Acceso total al sistema"},
+    {"codigo": "STOCK", "descripcion": "Gestión de catálogo e inventario"},
+    {"codigo": "PEDIDOS", "descripcion": "Gestión operativa de pedidos"},
+    {"codigo": "CLIENT", "descripcion": "Cliente de la tienda"},
 ]
 
 
@@ -73,7 +74,6 @@ class AuthService:
             )
 
         access_token, refresh_token = AuthService._generar_tokens(uow, usuario)
-        uow.commit()
 
         roles = uow.usuarios.get_roles(usuario.id)
         return TokenResponse(
@@ -106,13 +106,9 @@ class AuthService:
         uow.session.flush()
 
         # Asignar rol CLIENT por defecto
-        statement = select(Rol).where(Rol.nombre == "CLIENT")
-        rol_cliente = uow.session.exec(statement).first()
-        if rol_cliente:
-            uow.session.add(UsuarioRol(usuario_id=usuario.id, rol_id=rol_cliente.id))
+        uow.session.add(UsuarioRol(usuario_id=usuario.id, rol_codigo="CLIENT"))
 
         access_token, refresh_token = AuthService._generar_tokens(uow, usuario)
-        uow.commit()
 
         roles = uow.usuarios.get_roles(usuario.id)
         return TokenResponse(
@@ -152,7 +148,6 @@ class AuthService:
             )
 
         access_token, new_refresh_token = AuthService._generar_tokens(uow, usuario)
-        uow.commit()
 
         roles = uow.usuarios.get_roles(usuario.id)
         return TokenResponse(
@@ -172,7 +167,6 @@ class AuthService:
         rt = uow.refresh_tokens.get_by_token(refresh_token_str)
         if rt and not rt.revocado_en:
             uow.refresh_tokens.revocar(rt)
-            uow.commit()
 
 
 def seed_initial_data():
@@ -184,17 +178,18 @@ def seed_initial_data():
         # Crear roles
         for rol_data in ROLES_FIJOS:
             existing = session.exec(
-                select(Rol).where(Rol.nombre == rol_data["nombre"])
+                select(Rol).where(Rol.codigo == rol_data["codigo"])
             ).first()
             if not existing:
                 session.add(Rol(**rol_data))
 
         session.commit()
 
-        # Mapa de roles
-        roles_map = {}
-        for r in session.exec(select(Rol)).all():
-            roles_map[r.nombre] = r.id
+        # Mapa de roles (codigo -> codigo, para idempotencia de asociaciones)
+        roles_map = {
+            r.codigo: r.codigo
+            for r in session.exec(select(Rol)).all()
+        }
 
         # Usuarios por defecto
         default_users = [
@@ -216,20 +211,41 @@ def seed_initial_data():
             existing = session.exec(
                 select(Usuario).where(Usuario.email == user_data["email"])
             ).first()
-            if existing:
-                continue
+            if not existing:
+                usuario = Usuario(
+                    nombre=user_data["nombre"],
+                    email=user_data["email"],
+                    password_hash=pwd_context.hash(user_data["password"]),
+                )
+                session.add(usuario)
+                session.flush()
+            else:
+                usuario = existing
 
-            usuario = Usuario(
-                nombre=user_data["nombre"],
-                email=user_data["email"],
-                password_hash=pwd_context.hash(user_data["password"]),
-            )
-            session.add(usuario)
-            session.flush()
+            for rol_codigo in user_data["roles"]:
+                if rol_codigo not in roles_map:
+                    continue
+                ya_tiene = session.exec(
+                    select(UsuarioRol).where(
+                        UsuarioRol.usuario_id == usuario.id,
+                        UsuarioRol.rol_codigo == rol_codigo,
+                    )
+                ).first()
+                if not ya_tiene:
+                    session.add(UsuarioRol(usuario_id=usuario.id, rol_codigo=rol_codigo))
 
-            for rol_nombre in user_data["roles"]:
-                rol_id = roles_map.get(rol_nombre)
-                if rol_id:
-                    session.add(UsuarioRol(usuario_id=usuario.id, rol_id=rol_id))
+        session.commit()
+
+        # Sembrar EstadoPedido
+        estados = ["PENDIENTE", "CONFIRMADO", "EN_PREPARACION", "EN_CAMINO", "LISTO", "ENTREGADO", "FACTURADO", "CANCELADO"]
+        for codigo in estados:
+            if not session.exec(select(EstadoPedido).where(EstadoPedido.codigo == codigo)).first():
+                session.add(EstadoPedido(codigo=codigo))
+
+        # Sembrar FormaPago
+        formas = ["EFECTIVO", "MERCADOPAGO"]
+        for codigo in formas:
+            if not session.exec(select(FormaPago).where(FormaPago.codigo == codigo)).first():
+                session.add(FormaPago(codigo=codigo))
 
         session.commit()

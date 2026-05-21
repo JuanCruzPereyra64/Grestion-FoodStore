@@ -1,11 +1,14 @@
 from typing import Annotated
 from fastapi import APIRouter, Depends, Query
 from backend.database import get_uow
+from backend.dependencies.auth import require_role
 from backend.schemas.ingrediente import IngredienteCreate, IngredienteRead, IngredienteUpdate
 from backend.services import ingrediente_service
 from backend.uow.unit_of_work import UnitOfWork
 
 router = APIRouter(prefix="/ingredientes", tags=["Ingredientes"])
+
+_STOCK_ROLES = ["ADMIN", "STOCK"]
 
 
 @router.get("/", response_model=list[IngredienteRead])
@@ -23,15 +26,28 @@ def get_ingrediente(ingrediente_id: int, uow: UnitOfWork = Depends(get_uow)):
 
 
 @router.post("/", response_model=IngredienteRead, status_code=201)
-def create_ingrediente(data: IngredienteCreate, uow: UnitOfWork = Depends(get_uow)):
+def create_ingrediente(
+    data: IngredienteCreate,
+    uow: UnitOfWork = Depends(get_uow),
+    _: None = Depends(require_role(_STOCK_ROLES)),
+):
     return ingrediente_service.create(uow, data)
 
 
 @router.put("/{ingrediente_id}", response_model=IngredienteRead)
-def update_ingrediente(ingrediente_id: int, data: IngredienteUpdate, uow: UnitOfWork = Depends(get_uow)):
+def update_ingrediente(
+    ingrediente_id: int,
+    data: IngredienteUpdate,
+    uow: UnitOfWork = Depends(get_uow),
+    _: None = Depends(require_role(_STOCK_ROLES)),
+):
     return ingrediente_service.update(uow, ingrediente_id, data)
 
 
 @router.delete("/{ingrediente_id}", status_code=204)
-def delete_ingrediente(ingrediente_id: int, uow: UnitOfWork = Depends(get_uow)):
+def delete_ingrediente(
+    ingrediente_id: int,
+    uow: UnitOfWork = Depends(get_uow),
+    _: None = Depends(require_role(_STOCK_ROLES)),
+):
     ingrediente_service.delete(uow, ingrediente_id)

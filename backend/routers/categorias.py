@@ -1,11 +1,14 @@
 from typing import Annotated
 from fastapi import APIRouter, Depends, Query
 from backend.database import get_uow
+from backend.dependencies.auth import require_role
 from backend.schemas.categoria import CategoriaCreate, CategoriaRead, CategoriaUpdate
 from backend.services import categoria_service
 from backend.uow.unit_of_work import UnitOfWork
 
 router = APIRouter(prefix="/categorias", tags=["Categorías"])
+
+_STOCK_ROLES = ["ADMIN", "STOCK"]
 
 
 @router.get("/", response_model=list[CategoriaRead])
@@ -23,15 +26,28 @@ def get_categoria(categoria_id: int, uow: UnitOfWork = Depends(get_uow)):
 
 
 @router.post("/", response_model=CategoriaRead, status_code=201)
-def create_categoria(data: CategoriaCreate, uow: UnitOfWork = Depends(get_uow)):
+def create_categoria(
+    data: CategoriaCreate,
+    uow: UnitOfWork = Depends(get_uow),
+    _: None = Depends(require_role(_STOCK_ROLES)),
+):
     return categoria_service.create(uow, data)
 
 
 @router.put("/{categoria_id}", response_model=CategoriaRead)
-def update_categoria(categoria_id: int, data: CategoriaUpdate, uow: UnitOfWork = Depends(get_uow)):
+def update_categoria(
+    categoria_id: int,
+    data: CategoriaUpdate,
+    uow: UnitOfWork = Depends(get_uow),
+    _: None = Depends(require_role(_STOCK_ROLES)),
+):
     return categoria_service.update(uow, categoria_id, data)
 
 
 @router.delete("/{categoria_id}", status_code=204)
-def delete_categoria(categoria_id: int, uow: UnitOfWork = Depends(get_uow)):
+def delete_categoria(
+    categoria_id: int,
+    uow: UnitOfWork = Depends(get_uow),
+    _: None = Depends(require_role(_STOCK_ROLES)),
+):
     categoria_service.delete(uow, categoria_id)

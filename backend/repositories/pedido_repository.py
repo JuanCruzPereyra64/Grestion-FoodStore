@@ -25,5 +25,13 @@ class PedidoRepository:
         )
         return self.session.exec(statement).first()
 
+    def get_by_usuario_id(self, usuario_id: int) -> list[Pedido]:
+        statement = (
+            select(Pedido)
+            .where(Pedido.usuario_id == usuario_id)
+            .options(selectinload(Pedido.detalles))
+        )
+        return list(self.session.exec(statement).all())
+
     def add(self, pedido: Pedido) -> None:
         self.session.add(pedido)

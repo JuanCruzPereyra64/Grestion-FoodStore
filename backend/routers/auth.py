@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from fastapi.security import HTTPBearer
 from sqlmodel import SQLModel, Field
 
 from backend.database import get_uow
+from backend.dependencies.limiter import limiter
 from backend.schemas.auth import (
     LoginRequest,
     RegisterRequest,
@@ -20,7 +21,8 @@ class RefreshRequest(SQLModel):
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(data: LoginRequest, uow: UnitOfWork = Depends(get_uow)):
+@limiter.limit("5/15minutes")
+def login(request: Request, data: LoginRequest, uow: UnitOfWork = Depends(get_uow)):
     return AuthService.login(uow, data)
 
 

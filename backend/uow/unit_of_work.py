@@ -1,6 +1,7 @@
 from sqlmodel import Session
 from backend.database import engine
 from backend.repositories.categoria_repository import CategoriaRepository
+from backend.repositories.direccion_repository import DireccionRepository
 from backend.repositories.factura_repository import FacturaRepository
 from backend.repositories.ingrediente_repository import IngredienteRepository
 from backend.repositories.pedido_repository import PedidoRepository
@@ -12,6 +13,7 @@ class UnitOfWork:
     def __init__(self):
         self.session: Session = None
         self.categorias: CategoriaRepository = None
+        self.direcciones: DireccionRepository = None
         self.facturas: FacturaRepository = None
         self.ingredientes: IngredienteRepository = None
         self.pedidos: PedidoRepository = None
@@ -22,6 +24,7 @@ class UnitOfWork:
     def __enter__(self):
         self.session = Session(engine)
         self.categorias = CategoriaRepository(self.session)
+        self.direcciones = DireccionRepository(self.session)
         self.facturas = FacturaRepository(self.session)
         self.ingredientes = IngredienteRepository(self.session)
         self.pedidos = PedidoRepository(self.session)
@@ -30,10 +33,10 @@ class UnitOfWork:
         self.usuarios = UsuarioRepository(self.session)
         return self
 
-    def commit(self):
-        self.session.commit()
-
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if exc_type:
+        if exc_type is None:
+            self.session.commit()
+        else:
             self.session.rollback()
         self.session.close()
+        return False

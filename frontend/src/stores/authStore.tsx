@@ -1,4 +1,5 @@
-import { createContext, useContext, useReducer, useEffect, useCallback, type ReactNode } from 'react'
+import { create } from 'zustand'
+import { persist, createJSONStorage } from 'zustand/middleware'
 import type { UserResponse } from '../types'
 
 interface AuthState {
@@ -8,10 +9,10 @@ interface AuthState {
   isAuthenticated: boolean
 }
 
-type AuthAction =
-  | { type: 'LOGIN'; user: UserResponse; accessToken: string; refreshToken: string }
-  | { type: 'LOGOUT' }
-  | { type: 'UPDATE_TOKEN'; accessToken: string; refreshToken: string }
+interface AuthStore extends AuthState {
+  login: (user: UserResponse, accessToken: string, refreshToken: string) => void
+  logout: () => void
+}
 
 const STORAGE_KEY = 'foodstore-auth'
 
@@ -32,57 +33,41 @@ function pasadasLasTres(): boolean {
   }
 }
 
-function loadAuth(): AuthState {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) {
-      if (pasadasLasTres()) {
-        localStorage.removeItem(STORAGE_KEY)
-        return { user: null, accessToken: null, refreshToken: null, isAuthenticated: false }
-      }
-      const parsed = JSON.parse(raw)
-      return {
-        ...parsed,
-        isAuthenticated: true,
-      }
-    }
-  } catch { /* ignore */ }
-  return { user: null, accessToken: null, refreshToken: null, isAuthenticated: false }
+const initialState: AuthState = {
+  user: null,
+  accessToken: null,
+  refreshToken: null,
+  isAuthenticated: false,
 }
 
-function saveAuth(state: AuthState) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      user: state.user,
-      accessToken: state.accessToken,
-      refreshToken: state.refreshToken,
-    }))
-  } catch { /* ignore */ }
-}
+export const useAuthStore = create<AuthStore>()(
+  persist(
+    (set) => ({
+      ...initialState,
 
-function clearAuth() {
-  try {
-    localStorage.removeItem(STORAGE_KEY)
-  } catch { /* ignore */ }
-}
+      login: (user: UserResponse, accessToken: string, refreshToken: string) => {
+        set({ user, accessToken, refreshToken, isAuthenticated: true })
+      },
 
-function authReducer(state: AuthState, action: AuthAction): AuthState {
-  switch (action.type) {
-    case 'LOGIN':
-      return {
-        user: action.user,
-        accessToken: action.accessToken,
-        refreshToken: action.refreshToken,
-        isAuthenticated: true,
-      }
-    case 'LOGOUT':
-      return { user: null, accessToken: null, refreshToken: null, isAuthenticated: false }
-    case 'UPDATE_TOKEN':
-      return { ...state, accessToken: action.accessToken, refreshToken: action.refreshToken }
-    default:
-      return state
-  }
-}
+      logout: () => {
+        set({ ...initialState })
+      },
+    }),
+    {
+      name: STORAGE_KEY,
+      storage: createJSONStorage(() => localStorage),
+      onRehydrateStorage: () => (state) => {
+        if (state && pasadasLasTres()) {
+          state.user = null
+          state.accessToken = null
+          state.refreshToken = null
+          state.isAuthenticated = false
+          localStorage.removeItem(STORAGE_KEY)
+        }
+      },
+    },
+  ),
+)
 
 interface AuthContextValue {
   state: AuthState
@@ -90,36 +75,11 @@ interface AuthContextValue {
   logout: () => void
 }
 
-const AuthContext = createContext<AuthContextValue | null>(null)
-
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(authReducer, null, loadAuth)
-
-  useEffect(() => {
-    if (state.isAuthenticated) {
-      saveAuth(state)
-    } else {
-      clearAuth()
-    }
-  }, [state])
-
-  const login = useCallback((user: UserResponse, accessToken: string, refreshToken: string) => {
-    dispatch({ type: 'LOGIN', user, accessToken, refreshToken })
-  }, [])
-
-  const logout = useCallback(() => {
-    dispatch({ type: 'LOGOUT' })
-  }, [])
-
-  return (
-    <AuthContext.Provider value={{ state, login, logout }}>
-      {children}
-    </AuthContext.Provider>
-  )
-}
-
 export function useAuth(): AuthContextValue {
-  const ctx = useContext(AuthContext)
-  if (!ctx) throw new Error('useAuth debe usarse dentro de AuthProvider')
-  return ctx
+  const { user, accessToken, refreshToken, isAuthenticated, login, logout } = useAuthStore()
+  return {
+    state: { user, accessToken, refreshToken, isAuthenticated },
+    login,
+    logout,
+  }
 }

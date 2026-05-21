@@ -20,8 +20,8 @@ class UsuarioRepository:
     def get_roles(self, usuario_id: int) -> list[str]:
         from backend.models.usuario import Rol
         statement = (
-            select(Rol.nombre)
-            .join(UsuarioRol, UsuarioRol.rol_id == Rol.id)
+            select(Rol.codigo)
+            .join(UsuarioRol, UsuarioRol.rol_codigo == Rol.codigo)
             .where(UsuarioRol.usuario_id == usuario_id)
         )
         return list(self.session.exec(statement).all())

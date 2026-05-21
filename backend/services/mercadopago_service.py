@@ -44,7 +44,6 @@ def transicionar_estado(uow: UnitOfWork, pedido: Pedido, nuevo_estado: str) -> P
     registrar_historial(uow, pedido.id, pedido.estado, pedido.created_at)
     pedido.estado = nuevo_estado
     uow.pedidos.add(pedido)
-    uow.commit()
 
     return pedido
 
@@ -82,7 +81,6 @@ def create_preference(uow: UnitOfWork, pedido_id: int) -> PreferenceRead:
         external_reference=str(pedido.id),
     )
     uow.session.add(pago)
-    uow.commit()
 
     return PreferenceRead(
         id=response["id"],
@@ -167,7 +165,6 @@ def _process_payment_notification(uow: UnitOfWork, payment_id: int) -> dict:
         pago.status_detail = payment.get("status_detail")
         pago.updated_at = datetime.now(timezone.utc)
         uow.session.add(pago)
-        uow.commit()
 
     return {"status": "processed", "payment_status": status, "pedido_id": pedido_id}
 

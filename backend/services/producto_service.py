@@ -76,7 +76,7 @@ def create(uow: UnitOfWork, data: ProductoCreate) -> ProductoRead:
 
     producto = Producto.model_validate(data, update={"categorias": [], "ingredientes": []})
     uow.productos.add(producto)
-    uow.commit()
+    uow.session.flush()
     uow.session.refresh(producto)
 
     for cat_id in data.categoria_ids:
@@ -89,7 +89,6 @@ def create(uow: UnitOfWork, data: ProductoCreate) -> ProductoRead:
             cantidad_requerida=ing.cantidad_requerida,
         ))
 
-    uow.commit()
     return get_by_id(uow, producto.id)
 
 
@@ -120,7 +119,6 @@ def update(uow: UnitOfWork, producto_id: int, data: ProductoUpdate) -> ProductoR
         setattr(producto, key, value)
 
     uow.productos.add(producto)
-    uow.commit()
     return get_by_id(uow, producto_id)
 
 
@@ -129,7 +127,6 @@ def delete(uow: UnitOfWork, producto_id: int) -> None:
     if not producto:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
     uow.productos.delete(producto)
-    uow.commit()
 
 
 def get_ingredientes(uow: UnitOfWork, producto_id: int) -> list[ProductoIngredienteRead]:
@@ -153,7 +150,6 @@ def add_ingrediente(uow: UnitOfWork, producto_id: int, ingrediente_id: int, cant
             cantidad_requerida=cantidad_requerida,
             es_removible=es_removible,
         ))
-        uow.commit()
 
     return get_by_id(uow, producto_id)
 
@@ -163,5 +159,4 @@ def remove_ingrediente(uow: UnitOfWork, producto_id: int, ingrediente_id: int) -
     if not link:
         raise HTTPException(status_code=404, detail="Ingrediente no presente en el producto")
     uow.session.delete(link)
-    uow.commit()
     return get_by_id(uow, producto_id)

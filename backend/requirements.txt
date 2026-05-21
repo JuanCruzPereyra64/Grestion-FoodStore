@@ -9,3 +9,5 @@ bcrypt>=3.1.0,<5.0.0
 PyJWT==2.10.1
 python-multipart==0.0.12
 aiofiles==24.1.0
+slowapi==0.1.9
+limits==3.13.0

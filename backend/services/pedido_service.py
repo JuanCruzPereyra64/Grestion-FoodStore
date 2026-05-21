@@ -1,15 +1,17 @@
 from sqlmodel import select
 from fastapi import HTTPException
+from backend.models.direccion import DireccionEntrega
 from backend.models.pedido import HistorialEstadoPedido, Pedido, PedidoDetalle
 from backend.models.producto import ProductoIngrediente
+from backend.models.usuario import Usuario
 from backend.schemas.pedido import PedidoCreate
 from backend.services import producto_service
 from backend.uow.unit_of_work import UnitOfWork
 
-# Estados del Pedido (FSM)
+# Estados del Pedido (FSM) — deben coincidir exactamente con estados_pedido.codigo
 ESTADO_PENDIENTE = "PENDIENTE"
 ESTADO_CONFIRMADO = "CONFIRMADO"
-ESTADO_EN_PREPARACION = "EN_PREPARACIÓN"
+ESTADO_EN_PREPARACION = "EN_PREPARACION"
 ESTADO_EN_CAMINO = "EN_CAMINO"
 ESTADO_ENTREGADO = "ENTREGADO"
 ESTADO_FACTURADO = "FACTURADO"
@@ -28,31 +30,47 @@ TRANSICIONES_FSM = {
 
 
 def transicionar_estado(uow: UnitOfWork, pedido: Pedido, nuevo_estado: str) -> None:
-    """Valida y aplica una transición de estado, registrando en HistorialEstadoPedido."""
-    permitidos = TRANSICIONES_FSM.get(pedido.estado, [])
+    estado_anterior = pedido.estado_codigo
+    permitidos = TRANSICIONES_FSM.get(estado_anterior, [])
     if nuevo_estado not in permitidos:
         raise HTTPException(
             status_code=400,
-            detail=f"Transición inválida: {pedido.estado} → {nuevo_estado}. "
+            detail=f"Transición inválida: {estado_anterior} → {nuevo_estado}. "
                    f"Permitidas: {permitidos}",
         )
 
-    pedido.estado = nuevo_estado
+    pedido.estado_codigo = nuevo_estado
     uow.pedidos.add(pedido)
 
     historial = HistorialEstadoPedido(
         pedido_id=pedido.id,
         estado=nuevo_estado,
-        estado_desde=pedido.estado,  # guardamos el anterior como referencia
+        estado_desde=estado_anterior,
     )
     uow.session.add(historial)
 
 
 def create(uow: UnitOfWork, data: PedidoCreate) -> Pedido:
+    usuario = uow.session.get(Usuario, data.usuario_id)
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    direccion = uow.session.get(DireccionEntrega, data.direccion_id)
+    if not direccion:
+        raise HTTPException(status_code=404, detail="Dirección no encontrada")
+    if direccion.usuario_id != data.usuario_id:
+        raise HTTPException(status_code=403, detail="La dirección no pertenece al usuario")
+
+    direccion_snapshot = f"{direccion.alias} — {direccion.linea1}, {direccion.ciudad} ({direccion.cp})"
+
     pedido = Pedido(
-        cliente_nombre=data.cliente_nombre,
-        direccion_snapshot=data.direccion,
+        cliente_nombre=usuario.nombre,
+        direccion_snapshot=direccion_snapshot,
         total=0.0,
+        estado_codigo=ESTADO_PENDIENTE,
+        usuario_id=data.usuario_id,
+        direccion_id=data.direccion_id,
+        forma_pago_codigo=data.forma_pago_codigo,
     )
     uow.pedidos.add(pedido)
     uow.session.flush()
@@ -68,7 +86,6 @@ def create(uow: UnitOfWork, data: PedidoCreate) -> Pedido:
                 detail=f"El producto '{producto.nombre}' no está disponible",
             )
 
-        # Decrementar stock de ingredientes
         excluded = set(item.excluded_ingrediente_ids or [])
         stmt = select(ProductoIngrediente).where(
             ProductoIngrediente.producto_id == item.producto_id
@@ -109,7 +126,7 @@ def create(uow: UnitOfWork, data: PedidoCreate) -> Pedido:
 
     pedido.total = total
     uow.pedidos.add(pedido)
-    uow.commit()
+    uow.session.flush()
     uow.session.refresh(pedido)
 
     return pedido
@@ -124,3 +141,18 @@ def get_by_id(uow: UnitOfWork, pedido_id: int) -> Pedido:
     if not pedido:
         raise HTTPException(status_code=404, detail="Pedido no encontrado")
     return pedido
+
+
+def get_by_usuario_id(uow: UnitOfWork, usuario_id: int) -> list[Pedido]:
+    return uow.pedidos.get_by_usuario_id(usuario_id)
+
+
+def cambiar_estado(uow: UnitOfWork, pedido_id: int, nuevo_estado: str) -> Pedido:
+    pedido = get_by_id(uow, pedido_id)
+    transicionar_estado(uow, pedido, nuevo_estado)
+    return pedido
+
+
+def cancelar(uow: UnitOfWork, pedido_id: int) -> None:
+    pedido = get_by_id(uow, pedido_id)
+    transicionar_estado(uow, pedido, ESTADO_CANCELADO)
