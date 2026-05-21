@@ -58,37 +58,39 @@ export function ProductosPage() {
 
       {/* Filters */}
       <section className="max-w-6xl mx-auto px-6 pb-8">
-        <div className="flex flex-col md:flex-row gap-4 items-center">
-          <div className="relative flex-1 w-full">
-            <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Buscá tu plato favorito..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-11 pr-4 py-3 bg-slate-800/50 border border-slate-700 rounded-2xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-            />
-          </div>
-          <div className="flex gap-2 flex-wrap justify-center">
-            <button
-              onClick={() => setFiltroCategoria(undefined)}
-              className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                !filtroCategoria ? 'bg-primary text-white' : 'bg-slate-800/50 text-slate-300 border border-slate-700 hover:border-primary/30'
-              }`}
-            >
-              Todas
-            </button>
-            {categorias?.map((c) => (
+        <div className="bg-neutral-950/80 backdrop-blur-lg border border-slate-700/50 rounded-2xl p-4 md:p-6">
+          <div className="flex flex-col md:flex-row gap-4 items-center">
+            <div className="relative flex-1 w-full">
+              <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Buscá tu plato favorito..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-11 pr-4 py-3 bg-black/60 border border-slate-600/50 rounded-2xl text-sm text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+              />
+            </div>
+            <div className="flex gap-2 flex-wrap justify-center">
               <button
-                key={c.id}
-                onClick={() => setFiltroCategoria(c.id)}
+                onClick={() => setFiltroCategoria(undefined)}
                 className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                  filtroCategoria === c.id ? 'bg-primary text-white' : 'bg-slate-800/50 text-slate-300 border border-slate-700 hover:border-primary/30'
+                  !filtroCategoria ? 'bg-primary text-white' : 'bg-black/60 text-white border border-slate-600/50 hover:border-primary/30'
                 }`}
               >
-                {c.nombre}
+                Todas
               </button>
-            ))}
+              {categorias?.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => setFiltroCategoria(c.id)}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                    filtroCategoria === c.id ? 'bg-primary text-white' : 'bg-black/60 text-white border border-slate-600/50 hover:border-primary/30'
+                  }`}
+                >
+                  {c.nombre}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </section>

@@ -1,5 +1,6 @@
+import { useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, ChefHat, Tag, Info, ShoppingCart, AlertTriangle, Check, X, Trash2 } from 'lucide-react'
+import { ArrowLeft, ChefHat, Tag, Info, ShoppingCart, AlertTriangle, Check, X, Trash2, Plus } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useProducto } from '../hooks/useProductos'
 import { useAuth } from '../stores/authStore'
@@ -15,6 +16,9 @@ export function ProductoDetallePage() {
 
   const { data: producto, isLoading, isError } = useProducto(productoId)
   const cart = useCart()
+
+  const [excludedIngredients, setExcludedIngredients] = useState<number[]>([])
+  const [hasAddedToCart, setHasAddedToCart] = useState(false)
 
   if (isLoading) return (
     <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
@@ -36,20 +40,27 @@ export function ProductoDetallePage() {
 
   const p = producto!
   const cartItem = cart.itemInCart(p.id)
-  const excludedIds = new Set(cartItem?.excludedIngredienteIds ?? [])
+
+  function handleToggleExclude(ingredienteId: number, e: React.MouseEvent) {
+    e.preventDefault()
+    setExcludedIngredients(prev =>
+      prev.includes(ingredienteId)
+        ? prev.filter(id => id !== ingredienteId)
+        : [...prev, ingredienteId]
+    )
+  }
 
   function handleAddToCart() {
     if (!authState.isAuthenticated) { navigate('/login'); return }
-    cart.addItem(p)
-  }
 
-  function handleToggleExclude(ingredienteId: number) {
-    if (!authState.isAuthenticated) { navigate('/login'); return }
-    if (cartItem) {
-      cart.toggleExcludeIngrediente(p.id, ingredienteId)
+    const existingItem = cart.itemInCart(p.id)
+    if (existingItem) {
+      cart.updateItemExclusions(p.id, excludedIngredients)
+      cart.updateCantidad(p.id, existingItem.cantidad + 1)
     } else {
-      cart.addItem(p, 1, [ingredienteId])
+      cart.addItem(p, 1, excludedIngredients)
     }
+    setHasAddedToCart(true)
   }
 
   return (
@@ -132,7 +143,7 @@ export function ProductoDetallePage() {
               {p.ingredientes?.length ? (
                 <ul className="space-y-3">
                   {p.ingredientes.map((ing) => {
-                    const isExcluded = excludedIds.has(ing.ingrediente_id)
+                    const isExcluded = excludedIngredients.includes(ing.ingrediente_id)
                     return (
                       <motion.li
                         layout
@@ -141,13 +152,17 @@ export function ProductoDetallePage() {
                         key={ing.ingrediente_id}
                         className={`p-3 rounded-2xl border transition-all duration-200 ${
                           isExcluded
-                            ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800'
+                            ? 'bg-slate-800/20 border-slate-700'
                             : 'bg-slate-50 dark:bg-slate-900/50 border-slate-100 dark:border-slate-800'
                         }`}
                       >
                         <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="text-sm font-semibold text-slate-900 dark:text-white truncate">
+                          <div className={`flex items-center gap-2 min-w-0 ${isExcluded ? 'opacity-50' : ''}`}>
+                            <span className={`text-sm font-semibold truncate ${
+                              isExcluded
+                                ? 'text-gray-500 line-through'
+                                : 'text-slate-900 dark:text-white'
+                            }`}>
                               {ing.nombre}
                             </span>
                             {ing.es_alergeno && (
@@ -158,15 +173,15 @@ export function ProductoDetallePage() {
                             )}
                           </div>
                           <button
-                            onClick={() => handleToggleExclude(ing.ingrediente_id)}
+                            onClick={(e) => handleToggleExclude(ing.ingrediente_id, e)}
                             className={`shrink-0 p-1.5 rounded-lg transition-all ${
                               isExcluded
-                                ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+                                ? 'text-green-500 hover:bg-green-50 dark:hover:bg-green-900/20'
                                 : 'text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20'
                             }`}
                             title={isExcluded ? 'Incluir ingrediente' : 'Excluir ingrediente'}
                           >
-                            {isExcluded ? <Check size={14} /> : <Trash2 size={14} />}
+                            {isExcluded ? <Plus size={14} /> : <Trash2 size={14} />}
                           </button>
                         </div>
                       </motion.li>
@@ -180,23 +195,23 @@ export function ProductoDetallePage() {
               )}
             </div>
 
-            {/* CTA — moved from left column */}
+            {/* CTA */}
             <div className="mt-6 pt-6 border-t border-slate-100 dark:border-slate-800 space-y-4">
               <p className="text-xs text-slate-500 dark:text-slate-400 text-center">
                 {cartItem
-                  ? `${cartItem.cantidad} en tu carrito — ${cartItem.excludedIngredienteIds.length} ingrediente(s) excluido(s)`
+                  ? `${cartItem.cantidad} en tu carrito`
                   : p.puede_prepararse ? 'Personalizá tu pedido y agregalo al carrito' : 'Este producto no está disponible'}
               </p>
               <div className="flex items-center justify-center gap-3">
-                {cartItem && (
+                {hasAddedToCart && cartItem && (
                   <div className="flex items-center gap-2">
-                    <Button
-                      variant="secondary" size="sm"
+                    <Button variant="secondary" size="sm"
                       onClick={() => cart.updateCantidad(p.id, cartItem.cantidad - 1)}
                     >−</Button>
-                    <span className="font-bold text-lg min-w-[2ch] text-center text-slate-900 dark:text-white">{cartItem.cantidad}</span>
-                    <Button
-                      variant="secondary" size="sm"
+                    <span className="font-bold text-lg min-w-[2ch] text-center text-slate-900 dark:text-white">
+                      {cartItem.cantidad}
+                    </span>
+                    <Button variant="secondary" size="sm"
                       onClick={() => cart.updateCantidad(p.id, cartItem.cantidad + 1)}
                     >+</Button>
                   </div>
@@ -204,12 +219,15 @@ export function ProductoDetallePage() {
                 <Button
                   onClick={handleAddToCart}
                   variant="primary"
-                  icon={cartItem ? undefined : ShoppingCart}
+                  icon={cartItem && !hasAddedToCart ? ShoppingCart : undefined}
                   size="lg"
                   className="flex-1"
                   disabled={!p.puede_prepararse}
                 >
-                  {!p.puede_prepararse ? 'Sin stock' : cartItem ? 'Agregar otro' : 'Agregar al carrito'}
+                  {!p.puede_prepararse ? 'Sin stock'
+                    : hasAddedToCart ? 'Agregar otro'
+                    : cartItem ? 'Agregar al carrito (actualizar)'
+                    : 'Agregar al carrito'}
                 </Button>
               </div>
             </div>

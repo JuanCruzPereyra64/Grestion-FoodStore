@@ -9,6 +9,7 @@ interface CartStore {
   removeItem: (productoId: number) => void
   updateCantidad: (productoId: number, cantidad: number) => void
   toggleExcludeIngrediente: (productoId: number, ingredienteId: number) => void
+  updateItemExclusions: (productoId: number, excludedIngredienteIds: number[]) => void
   clearCart: () => void
 }
 
@@ -66,6 +67,16 @@ export const useCartStore = create<CartStore>()(
         })
       },
 
+      updateItemExclusions: (productoId: number, excludedIngredienteIds: number[]) => {
+        set({
+          items: get().items.map(i =>
+            i.producto.id === productoId
+              ? { ...i, excludedIngredienteIds }
+              : i
+          ),
+        })
+      },
+
       clearCart: () => {
         set({ items: [] })
       },
@@ -85,12 +96,13 @@ interface CartContextValue {
   removeItem: (productoId: number) => void
   updateCantidad: (productoId: number, cantidad: number) => void
   toggleExcludeIngrediente: (productoId: number, ingredienteId: number) => void
+  updateItemExclusions: (productoId: number, excludedIngredienteIds: number[]) => void
   clearCart: () => void
   itemInCart: (productoId: number) => CartItem | undefined
 }
 
 export function useCart(): CartContextValue {
-  const { items, addItem, removeItem, updateCantidad, toggleExcludeIngrediente, clearCart } = useCartStore()
+  const { items, addItem, removeItem, updateCantidad, toggleExcludeIngrediente, updateItemExclusions, clearCart } = useCartStore()
   const isAuthenticated = useAuthStore(state => state.isAuthenticated)
 
   const activeItems = isAuthenticated ? items : []
@@ -110,6 +122,7 @@ export function useCart(): CartContextValue {
     removeItem,
     updateCantidad,
     toggleExcludeIngrediente,
+    updateItemExclusions,
     clearCart,
     itemInCart,
   }
