@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { ShoppingBag, ArrowLeft, AlertTriangle, CreditCard, User, ExternalLink, AlertCircle } from 'lucide-react'
+import { ShoppingBag, ArrowLeft, AlertTriangle, CreditCard, User, ExternalLink, AlertCircle, MapPin } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useCart } from '../stores/cartStore'
+import { useAuth } from '../stores/authStore'
 import { useCreatePedido } from '../hooks/usePedidos'
 import { useCreatePreference } from '../hooks/usePagos'
+import { useDirecciones } from '../hooks/useDirecciones'
 import { Button } from '../components/common/Button'
 import type { PedidoCreate } from '../types'
 
@@ -12,22 +14,38 @@ const ZONAS = ['Maipú', 'Ciudad', 'Godoy Cruz', 'Luján de Cuyo', 'Guaymallén'
 
 export function CheckoutPage() {
   const cart = useCart()
+  const auth = useAuth()
+  const user = auth.state.user
+
   const createMutation = useCreatePedido()
   const createPreferenceMutation = useCreatePreference()
   const navigate = useNavigate()
 
-  const [clienteNombre, setClienteNombre] = useState('')
-  const [telefono, setTelefono] = useState('')
+  const direccionesQuery = useDirecciones(user?.id ?? null)
+  const direcciones = direccionesQuery.data ?? []
+  const hasDirecciones = direcciones.length > 0
+
+  const [clienteNombre, setClienteNombre] = useState(user?.nombre ?? '')
+  const [telefono, setTelefono] = useState(user?.telefono ?? '')
   const [direccion, setDireccion] = useState('')
   const [zonaEnvio, setZonaEnvio] = useState('')
   const [metodoPago, setMetodoPago] = useState('mercadopago')
+  const [selectedDireccionId, setSelectedDireccionId] = useState<number | null>(null)
 
-  const isValid =
-    clienteNombre.trim().length > 0 &&
-    telefono.trim().length > 0 &&
-    direccion.trim().length > 0 &&
-    zonaEnvio.length > 0 &&
-    cart.items.length > 0
+  useEffect(() => {
+    if (direcciones.length > 0 && selectedDireccionId === null) {
+      const principal = direcciones.find(d => d.es_principal)
+      setSelectedDireccionId(principal?.id ?? direcciones[0].id)
+    }
+  }, [direcciones, selectedDireccionId])
+
+  const isValid = (() => {
+    if (cart.items.length === 0) return false
+    if (!clienteNombre.trim()) return false
+    if (!telefono.trim()) return false
+    if (hasDirecciones) return selectedDireccionId !== null
+    return direccion.trim().length > 0 && zonaEnvio.length > 0
+  })()
 
   useEffect(() => {
     if (createPreferenceMutation.isSuccess && createPreferenceMutation.data) {
@@ -39,16 +57,33 @@ export function CheckoutPage() {
     e.preventDefault()
     if (!isValid || createMutation.isPending) return
 
-    const payload: PedidoCreate = {
-      cliente_nombre: clienteNombre.trim(),
-      telefono: telefono.trim(),
-      direccion: direccion.trim(),
-      zona_envio: zonaEnvio,
-      items: cart.items.map(item => ({
-        producto_id: item.producto.id,
-        cantidad: item.cantidad,
-        excluded_ingrediente_ids: item.excludedIngredienteIds,
-      })),
+    let payload: PedidoCreate
+
+    if (user && hasDirecciones && selectedDireccionId !== null) {
+      payload = {
+        usuario_id: user.id,
+        direccion_id: selectedDireccionId,
+        forma_pago_codigo: metodoPago === 'efectivo' ? 'EFECTIVO' : 'MERCADOPAGO',
+        items: cart.items.map(item => ({
+          producto_id: item.producto.id,
+          cantidad: item.cantidad,
+          excluded_ingrediente_ids: item.excludedIngredienteIds,
+        })),
+      }
+    } else {
+      payload = {
+        cliente_nombre: clienteNombre.trim(),
+        telefono: telefono.trim(),
+        direccion: direccion.trim(),
+        zona_envio: zonaEnvio,
+        forma_pago_codigo: metodoPago === 'efectivo' ? 'EFECTIVO' : 'MERCADOPAGO',
+        ...(user ? { usuario_id: user.id } : {}),
+        items: cart.items.map(item => ({
+          producto_id: item.producto.id,
+          cantidad: item.cantidad,
+          excluded_ingrediente_ids: item.excludedIngredienteIds,
+        })),
+      }
     }
 
     createMutation.mutate(payload, {
@@ -61,6 +96,33 @@ export function CheckoutPage() {
         }
       },
     })
+  }
+
+  if (createMutation.isError) {
+    return (
+      <div className="max-w-lg mx-auto text-center space-y-6 py-20">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="p-8 md:p-12 bg-black/80 backdrop-blur-md rounded-3xl border border-white/10 space-y-6"
+        >
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-red-900/20 text-red-400 mx-auto">
+            <AlertCircle size={40} strokeWidth={2.5} />
+          </div>
+          <div>
+            <h1 className="text-3xl font-display font-bold text-white">Error al crear el pedido</h1>
+            <p className="text-gray-400 mt-2 text-lg">
+              {createMutation.error?.message ?? 'Ocurrió un error inesperado. Por favor intentá de nuevo.'}
+            </p>
+          </div>
+          <div className="flex justify-center gap-4">
+            <Button variant="secondary" onClick={() => createMutation.reset()} icon={ArrowLeft}>
+              Reintentar
+            </Button>
+          </div>
+        </motion.div>
+      </div>
+    )
   }
 
   if (createMutation.isSuccess && createPreferenceMutation.isPending) {
@@ -151,31 +213,55 @@ export function CheckoutPage() {
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold text-gray-200 ml-1">Dirección de entrega</label>
-                  <input
-                    required
-                    placeholder="Ej: Av. Siempre Viva 123, Piso 3, Depto B"
-                    value={direccion}
-                    onChange={(e) => setDireccion(e.target.value)}
-                    className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-[#FF5100] focus:ring-1 focus:ring-[#FF5100] transition-all"
-                  />
-                </div>
+                {hasDirecciones ? (
+                  <div className="space-y-2">
+                    <label className="text-sm font-semibold text-gray-200 ml-1 flex items-center gap-1.5">
+                      <MapPin size={14} className="text-[#FF5100]" />
+                      Dirección de entrega
+                    </label>
+                    <select
+                      required
+                      value={selectedDireccionId ?? ''}
+                      onChange={(e) => setSelectedDireccionId(Number(e.target.value))}
+                      className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#FF5100] focus:ring-1 focus:ring-[#FF5100] transition-all"
+                    >
+                      <option value="" disabled className="bg-black text-gray-500">Seleccioná una dirección</option>
+                      {direcciones.map(d => (
+                        <option key={d.id} value={d.id} className="bg-black text-white">
+                          {d.alias} — {d.linea1}, {d.ciudad}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <>
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-gray-200 ml-1">Dirección de entrega</label>
+                      <input
+                        required
+                        placeholder="Ej: Av. Siempre Viva 123, Piso 3, Depto B"
+                        value={direccion}
+                        onChange={(e) => setDireccion(e.target.value)}
+                        className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-[#FF5100] focus:ring-1 focus:ring-[#FF5100] transition-all"
+                      />
+                    </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold text-gray-200 ml-1">Zona de Envío</label>
-                  <select
-                    required
-                    value={zonaEnvio}
-                    onChange={(e) => setZonaEnvio(e.target.value)}
-                    className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#FF5100] focus:ring-1 focus:ring-[#FF5100] transition-all"
-                  >
-                    <option value="" disabled className="bg-black text-gray-500">Seleccioná una zona</option>
-                    {ZONAS.map(z => (
-                      <option key={z} value={z} className="bg-black text-white">{z}</option>
-                    ))}
-                  </select>
-                </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-gray-200 ml-1">Zona de Envío</label>
+                      <select
+                        required
+                        value={zonaEnvio}
+                        onChange={(e) => setZonaEnvio(e.target.value)}
+                        className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#FF5100] focus:ring-1 focus:ring-[#FF5100] transition-all"
+                      >
+                        <option value="" disabled className="bg-black text-gray-500">Seleccioná una zona</option>
+                        {ZONAS.map(z => (
+                          <option key={z} value={z} className="bg-black text-white">{z}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 

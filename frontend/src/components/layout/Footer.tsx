@@ -37,7 +37,7 @@ const socialLinks = [
 
 export function Footer() {
   return (
-    <footer className="w-full bg-[#0a0a0a] border-t border-white/10">
+    <footer className="w-full bg-[#0a0a0a] border-t border-white/10 mt-auto">
       <div className="max-w-7xl mx-auto py-12 px-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* Col 1: Marca */}

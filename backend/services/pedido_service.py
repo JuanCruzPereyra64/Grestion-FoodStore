@@ -51,26 +51,36 @@ def transicionar_estado(uow: UnitOfWork, pedido: Pedido, nuevo_estado: str) -> N
 
 
 def create(uow: UnitOfWork, data: PedidoCreate) -> Pedido:
-    usuario = uow.session.get(Usuario, data.usuario_id)
-    if not usuario:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
-
-    direccion = uow.session.get(DireccionEntrega, data.direccion_id)
-    if not direccion:
-        raise HTTPException(status_code=404, detail="Dirección no encontrada")
-    if direccion.usuario_id != data.usuario_id:
-        raise HTTPException(status_code=403, detail="La dirección no pertenece al usuario")
-
-    direccion_snapshot = f"{direccion.alias} — {direccion.linea1}, {direccion.ciudad} ({direccion.cp})"
+    # Forma vinculada: usa usuario_id + direccion_id
+    if data.usuario_id and data.direccion_id:
+        usuario = uow.session.get(Usuario, data.usuario_id)
+        if not usuario:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        direccion = uow.session.get(DireccionEntrega, data.direccion_id)
+        if not direccion:
+            raise HTTPException(status_code=404, detail="Dirección no encontrada")
+        if direccion.usuario_id != data.usuario_id:
+            raise HTTPException(status_code=403, detail="La dirección no pertenece al usuario")
+        cliente_nombre = usuario.nombre
+        direccion_snapshot = f"{direccion.alias} — {direccion.linea1}, {direccion.ciudad} ({direccion.cp})"
+        forma_pago = data.forma_pago_codigo or "EFECTIVO"
+    else:
+        # Forma libre: datos del checkout
+        if not data.cliente_nombre:
+            raise HTTPException(status_code=422, detail="cliente_nombre es requerido")
+        zona = f" ({data.zona_envio})" if data.zona_envio else ""
+        cliente_nombre = data.cliente_nombre
+        direccion_snapshot = f"{data.direccion or ''}{zona}".strip()
+        forma_pago = "MERCADOPAGO" if not data.forma_pago_codigo else data.forma_pago_codigo
 
     pedido = Pedido(
-        cliente_nombre=usuario.nombre,
+        cliente_nombre=cliente_nombre,
         direccion_snapshot=direccion_snapshot,
         total=0.0,
         estado_codigo=ESTADO_PENDIENTE,
         usuario_id=data.usuario_id,
         direccion_id=data.direccion_id,
-        forma_pago_codigo=data.forma_pago_codigo,
+        forma_pago_codigo=forma_pago,
     )
     uow.pedidos.add(pedido)
     uow.session.flush()

@@ -2,6 +2,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Trash2, Plus, Minus, ArrowLeft, ShoppingBag } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useCart } from '../stores/cartStore'
+import { getImageUrl } from '../services/api'
 
 export function CartPage() {
   const cart = useCart()
@@ -55,7 +56,7 @@ export function CartPage() {
           >
             <div className="flex flex-col md:flex-row items-start gap-4">
               <img
-                src={item.producto.imagenes_url?.[0] || '/placeholder.svg'}
+                src={getImageUrl(item.producto.imagenes_url?.[0]) || '/placeholder.svg'}
                 alt={item.producto.nombre}
                 className="w-20 h-20 rounded-xl object-cover shrink-0"
               />

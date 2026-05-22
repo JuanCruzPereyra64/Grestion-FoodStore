@@ -3,6 +3,7 @@ import { ShoppingCart, Search, UtensilsCrossed, Star } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import { useProductos } from '../hooks/useProductos'
+import { getImageUrl } from '../services/api'
 import { useCategorias } from '../hooks/useCategorias'
 import { useAuth } from '../stores/authStore'
 import { useCart } from '../stores/cartStore'
@@ -123,7 +124,7 @@ export function ProductosPage() {
                     <div className="aspect-[4/3] bg-slate-700/50 overflow-hidden">
                       {p.imagenes_url?.[0] ? (
                         <img
-                          src={p.imagenes_url[0]}
+                          src={getImageUrl(p.imagenes_url[0])}
                           alt={p.nombre}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         />

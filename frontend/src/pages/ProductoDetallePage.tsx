@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft, ChefHat, Tag, Info, ShoppingCart, AlertTriangle, Check, X, Trash2, Plus } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useProducto } from '../hooks/useProductos'
+import { getImageUrl } from '../services/api'
 import { useAuth } from '../stores/authStore'
 import { useCart } from '../stores/cartStore'
 import { Card, CardHeader } from '../components/common/Card'
@@ -112,7 +113,7 @@ export function ProductoDetallePage() {
 
               {p.imagenes_url?.[0] && (
                 <div className="-mx-6 mt-4 mb-6">
-                  <img src={p.imagenes_url[0]} alt={p.nombre} className="w-full max-h-[32rem] object-contain bg-slate-900/20" />
+                  <img src={getImageUrl(p.imagenes_url[0])} alt={p.nombre} className="w-full max-h-[32rem] object-contain bg-slate-900/20" />
                 </div>
               )}
 

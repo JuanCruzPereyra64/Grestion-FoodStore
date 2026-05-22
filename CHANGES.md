@@ -1,5 +1,5 @@
 # Mapa de Changes — Food Store v5.0
-**Actualizado**: 2026-05-21 (zustand-tanstack-migration archivado — FASE 2 completa)  
+**Actualizado**: 2026-05-22 (alembic-setup archivado — mercadopago-sdk-frontend como próximo)  
 **Metodología**: OPSX (Spec-Driven Development)  
 **Referencia**: `docs/integrador.txt` v5.0
 
@@ -112,9 +112,8 @@
 | # | Change | Estado | Acción |
 |---|---|---|---|
 | F4.1 | `frontend-redesign` | ✅ Archivado | — |
-| F4.2 | `product-card-image-maximization` | ⚗️ Incompleto | Completar design + tasks → apply |
-| F4.3 | `alembic-setup` 🆕 | 🆕 No existe | `/opsx:propose alembic-setup` (bonus) |
-| F4.4 | `mercadopago-sdk-frontend` 🆕 | 🆕 No existe | `/opsx:propose mercadopago-sdk-frontend` (bonus) |
+| F4.2 | `alembic-setup` | ✅ Archivado | — |
+| F4.3 | `mercadopago-checkout-pro` | ✅ Funcionando | Agregar `MERCADOPAGO_ACCESS_TOKEN` en `.env` |
 
 ---
 

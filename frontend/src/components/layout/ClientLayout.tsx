@@ -30,7 +30,7 @@ export function ClientLayout({ children }: LayoutProps) {
   }, [])
 
   return (
-    <div className="min-h-screen bg-transparent">
+    <div className="min-h-screen bg-transparent flex flex-col">
       <nav className="fixed top-0 left-0 right-0 z-50 bg-slate-900/90 backdrop-blur-md border-b border-slate-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 grid grid-cols-3 items-center">
           {/* Col 1: Avatar */}
@@ -150,7 +150,7 @@ export function ClientLayout({ children }: LayoutProps) {
         </div>
       </nav>
 
-      <main className="pt-16">
+      <main className="pt-16 flex-1 pb-16">
         <AnimatePresence mode="wait">
           <motion.div
             key={location.pathname}
@@ -158,6 +158,7 @@ export function ClientLayout({ children }: LayoutProps) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
+            className="pb-24"
           >
             {children}
           </motion.div>

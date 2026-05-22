@@ -83,10 +83,13 @@ export interface PedidoItem {
 }
 
 export interface PedidoCreate {
-  cliente_nombre: string
+  cliente_nombre?: string
   telefono?: string
-  direccion: string
+  direccion?: string
   zona_envio?: string
+  forma_pago_codigo?: string
+  usuario_id?: number
+  direccion_id?: number
   items: PedidoItem[]
 }
 
@@ -171,6 +174,16 @@ export interface TokenResponse {
 export interface LoginRequest {
   email: string
   password: string
+}
+
+export interface DireccionEntrega {
+  id: number
+  usuario_id: number
+  alias: string
+  linea1: string
+  ciudad: string
+  cp: string
+  es_principal: boolean
 }
 
 export interface EstadisticasResponse {

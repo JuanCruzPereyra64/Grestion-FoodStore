@@ -1,7 +1,7 @@
 import uuid
 from pathlib import Path
 from typing import Annotated, Optional
-from fastapi import APIRouter, Depends, Query, UploadFile, File, HTTPException
+from fastapi import APIRouter, Depends, Query, Request, UploadFile, File, HTTPException
 from backend.database import get_uow
 from backend.dependencies.auth import require_role
 from backend.schemas.producto import AsociarIngrediente, ProductoCreate, ProductoIngredienteRead, ProductoRead, ProductoUpdate
@@ -18,6 +18,7 @@ _STOCK_ROLES = ["ADMIN", "STOCK"]
 
 @router.post("/imagen")
 async def upload_imagen(
+    request: Request,
     file: UploadFile = File(...),
     _: None = Depends(require_role(_STOCK_ROLES)),
 ):
@@ -28,7 +29,8 @@ async def upload_imagen(
     ruta = UPLOAD_DIR / nombre
     content = await file.read()
     ruta.write_bytes(content)
-    return {"url": f"/imagenes/{nombre}"}
+    base = str(request.base_url).rstrip("/")
+    return {"url": f"{base}/imagenes/{nombre}"}
 
 
 @router.get("/", response_model=list[ProductoRead])

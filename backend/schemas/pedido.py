@@ -10,9 +10,17 @@ class PedidoItem(SQLModel):
 
 
 class PedidoCreate(SQLModel):
-    usuario_id: int
-    direccion_id: int
-    forma_pago_codigo: str = Field(min_length=1, max_length=30)
+    # Forma libre (desde CheckoutPage)
+    cliente_nombre: Optional[str] = None
+    telefono: Optional[str] = None
+    direccion: Optional[str] = None
+    zona_envio: Optional[str] = None
+
+    # Modelo vinculado (opcional)
+    usuario_id: Optional[int] = None
+    direccion_id: Optional[int] = None
+    forma_pago_codigo: Optional[str] = None
+
     items: list[PedidoItem] = Field(min_length=1)
 
 

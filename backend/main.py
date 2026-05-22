@@ -7,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
-from backend.database import create_db_and_tables
+from backend.database import run_migrations
 from backend.dependencies.limiter import limiter
 from backend.routers import auth, categorias, direcciones, ingredientes, pagos, pedidos, productos, reportes
 from backend.services.auth_service import seed_initial_data
@@ -15,7 +15,7 @@ from backend.services.auth_service import seed_initial_data
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    create_db_and_tables()
+    run_migrations()
     seed_initial_data()
     yield
 

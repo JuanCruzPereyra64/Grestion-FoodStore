@@ -7,45 +7,14 @@ from dotenv import load_dotenv
 from sqlmodel import select, desc
 
 from backend.models.pago import Pago
-from backend.models.pedido import HistorialEstadoPedido, Pedido
+from backend.models.pedido import Pedido
 from backend.schemas.pago import PreferenceRead
+from backend.services.pedido_service import transicionar_estado
 from backend.uow.unit_of_work import UnitOfWork
 
 load_dotenv()
 
 logger = logging.getLogger(__name__)
-
-TRANSICIONES_VALIDAS = {
-    "PENDIENTE": {"CONFIRMADO", "CANCELADO"},
-    "CONFIRMADO": {"EN_PREPARACIÓN", "CANCELADO"},
-    "EN_PREPARACIÓN": {"EN_CAMINO", "CANCELADO"},
-    "EN_CAMINO": {"ENTREGADO"},
-    "ENTREGADO": set(),
-    "CANCELADO": set(),
-}
-
-
-def registrar_historial(uow: UnitOfWork, pedido_id: int, estado: str, estado_desde: datetime) -> None:
-    historial = HistorialEstadoPedido(
-        pedido_id=pedido_id, estado=estado, estado_desde=estado_desde,
-    )
-    uow.session.add(historial)
-
-
-def transicionar_estado(uow: UnitOfWork, pedido: Pedido, nuevo_estado: str) -> Pedido:
-    permitidos = TRANSICIONES_VALIDAS.get(pedido.estado, set())
-    if nuevo_estado not in permitidos:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Transición inválida: {pedido.estado} → {nuevo_estado}. "
-                   f"Permitidas: {', '.join(permitidos) if permitidos else 'ninguna'}",
-        )
-
-    registrar_historial(uow, pedido.id, pedido.estado, pedido.created_at)
-    pedido.estado = nuevo_estado
-    uow.pedidos.add(pedido)
-
-    return pedido
 
 
 def create_preference(uow: UnitOfWork, pedido_id: int) -> PreferenceRead:
@@ -53,7 +22,7 @@ def create_preference(uow: UnitOfWork, pedido_id: int) -> PreferenceRead:
     if not pedido:
         raise HTTPException(status_code=404, detail="Pedido no encontrado")
 
-    if pedido.estado != "PENDIENTE":
+    if pedido.estado_codigo != "PENDIENTE":
         raise HTTPException(status_code=400, detail="Solo pedidos PENDIENTE pueden generar preferencia")
 
     try:
@@ -100,17 +69,26 @@ def _build_preference_data(pedido: Pedido) -> dict:
             "currency_id": "ARS",
         })
 
-    return {
+    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
+    backend_url = os.getenv("BACKEND_URL", "http://localhost:8000")
+
+    data = {
         "items": items,
         "external_reference": str(pedido.id),
         "back_urls": {
-            "success": f"http://localhost:5173/pago/success?pedido_id={pedido.id}",
-            "failure": f"http://localhost:5173/pago/failure?pedido_id={pedido.id}",
-            "pending": f"http://localhost:5173/pago/pending?pedido_id={pedido.id}",
+            "success": f"{frontend_url}/pago/success?pedido_id={pedido.id}",
+            "failure": f"{frontend_url}/pago/failure?pedido_id={pedido.id}",
+            "pending": f"{frontend_url}/pago/pending?pedido_id={pedido.id}",
         },
-        "auto_return": "approved",
-        "notification_url": "http://localhost:8000/api/v1/pagos/webhook",
     }
+
+    if not frontend_url.startswith("http://localhost"):
+        data["auto_return"] = "approved"
+
+    if not backend_url.startswith("http://localhost"):
+        data["notification_url"] = f"{backend_url}/api/v1/pagos/webhook"
+
+    return data
 
 
 def process_webhook_notification(uow: UnitOfWork, notification: dict) -> dict:
@@ -183,7 +161,7 @@ def get_pago_status(uow: UnitOfWork, pedido_id: int) -> dict:
 
     return {
         "pedido_id": pedido.id,
-        "estado": pedido.estado,
+        "estado": pedido.estado_codigo,
         "pago": {
             "status": pago.status if pago else None,
             "status_detail": pago.status_detail if pago else None,

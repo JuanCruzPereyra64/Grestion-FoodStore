@@ -1,10 +1,18 @@
 const BASE_URL = 'http://localhost:8000/api/v1'
+const BACKEND_URL = 'http://localhost:8000'
+
+export function getImageUrl(path: string | undefined | null): string {
+  if (!path) return ''
+  if (path.startsWith('http')) return path
+  return `${BACKEND_URL}${path}`
+}
 
 function getAuthHeaders(): Record<string, string> {
   try {
     const raw = localStorage.getItem('foodstore-auth')
     if (raw) {
-      const { accessToken } = JSON.parse(raw)
+      const parsed = JSON.parse(raw)
+      const accessToken = parsed.state?.accessToken ?? parsed.accessToken
       if (accessToken) return { 'Authorization': `Bearer ${accessToken}` }
     }
   } catch { /* ignore */ }
@@ -73,6 +81,11 @@ export const pagosApi = {
     }),
   getPagoStatus: (pedidoId: number) =>
     request<import('../types').PagoStatusResponse>(`/pagos/${pedidoId}/status`),
+}
+
+export const direccionesApi = {
+  getByUsuario: (usuarioId: number) =>
+    request<import('../types').DireccionEntrega[]>(`/direcciones/?usuario_id=${usuarioId}`),
 }
 
 export const authApi = {
